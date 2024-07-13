@@ -32,6 +32,7 @@ export const VolumeToken = mongoose.model(
     baseSymbol: String,
     decimal: Number,
     baseDecimal: Number,
+    pool_info: Object,
     currentVolume: Number,
     targetVolume: Number,
     timestamp: Number,
@@ -192,6 +193,7 @@ export const registToken = (params: any) => {
     item.baseSymbol = params.baseSymbol;
     item.decimal = params.decimal;
     item.baseDecimal = params.baseDecimal;
+    item.pool_info = params.pool_info;
     item.currentVolume = 0;
     item.targetVolume = 1;
     item.workingTime = 0;

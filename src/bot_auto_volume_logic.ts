@@ -39,12 +39,13 @@ export const registerToken = async (
     chatid: string, // this value is not filled in case of web request, so this could be 0
     addr: string,
     symbol: string,
-    decimal: number
+    decimal: number,
+    pool_info: object,
 ) => {
     if (await database.selectToken({ chatid, addr })) {
         return constants.ResultCode.SUCCESS
     }
-    const regist = await database.registToken({ chatid, addr, symbol, decimal, baseAddr: NATIVE_MINT.toString(), baseSymbol: "SOL", baseDecimal: 9 })
+    const regist = await database.registToken({ chatid, addr, symbol, decimal, baseAddr: NATIVE_MINT.toString(),pool_info : pool_info, baseSymbol: "SOL", baseDecimal: 9 })
     if (!regist) {
         return constants.ResultCode.INTERNAL
     }

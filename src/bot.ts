@@ -8,6 +8,8 @@ import * as database from './db';
 import * as afx from './global';
 import * as utils from './utils';
 import * as constants from './uniconst';
+import { Connection } from '@solana/web3.js';
+import { getPoolInfo } from './common';
 
 dotenv.config();
 
@@ -43,6 +45,9 @@ export enum StateCode {
     WAIT_SET_RATING,
     WAIT_SET_BUY_AMOUNT,
 }
+const NET_URL =
+  process.env.MAINNET_RPC_URL || "https://api.mainnet-beta.solana.com";
+const connection = new Connection(NET_URL, "confirmed");
 
 export let bot: TelegramBot;
 export let myInfo: TelegramBot.User;
@@ -470,20 +475,14 @@ export const getMainMenuMessage = async (
     const SOLBalance: number = await utils.getWalletSOLBalance(depositWallet)
 
     const MESSAGE = `🏅 Welcome to ${process.env.BOT_TITLE} 🏅.
-The first and only auto volume bot on Solana.
+The fastest Neptune buy and sell bot on Solana.
 To get quick start with another token, input your own token to make volume.
-Tap the Help button below for more info.
+🔍 Tap the Help button below for more info.
 
-💡 No fee for <a href="https://memepump.net/">MemePump</a> customers.
-
-🔍 Deposit SOL Amount Calculation:
-    Pool SOL Amount * 0.2
+💡 No fee for <a href="https://nep.ag/">nep.ag</a> customers.
 
 ${token ? `📜 Token Info: ${token.symbol}/${token.baseSymbol}
-<code>${token.addr}</code>` : ``}
-
-⌛ Bot worked: ${utils.roundDecimal(token.workingTime / constants.MINUTE, 1)} min
-💹 Bot made: ${utils.roundBigUnit(token.currentVolume, 2)}
+📜 Token Address: <code>${token.addr}</code>` : ``}
 
 💳 Your Deposit Wallet:\n<code>${depositWallet.publicKey}</code>
 💰 Balance: ${utils.roundSolUnit(SOLBalance, 3)}
@@ -508,21 +507,22 @@ export const json_main = async (sessionId: string) => {
                 `🎖️ ${process.env.BOT_TITLE}`
             ),
         ],
+        // [
+        //     json_buttonItem(itemData, OptionCode.MAIN_START_STOP, token.status ? "⚓ Stop" : "🚀 Start"),
+        // ],
+        // [
+        //     json_buttonItem(itemData, OptionCode.MAIN_SET_TARGET, `🎚️ Target Volume Amount (${token.targetVolume}M)`),
+        // ],
         [
-            json_buttonItem(itemData, OptionCode.MAIN_START_STOP, token.status ? "⚓ Stop" : "🚀 Start"),
+            json_buttonItem(itemData, OptionCode.MAIN_SET_BUY_AMOUNT, `💸 Buy with X SOL`),
+            json_buttonItem(itemData, OptionCode.MAIN_SET_RATING, `💸 Sell with X% TOKEN`),
+            // json_buttonItem(itemData, OptionCode.MAIN_SET_RATING, `♻️ TRX Rating ${token.ratingPer1H}*${token.walletSize}/min`),
         ],
-        [
-            json_buttonItem(itemData, OptionCode.MAIN_SET_TARGET, `🎚️ Target Volume Amount (${token.targetVolume}M)`),
-        ],
-        [
-            json_buttonItem(itemData, OptionCode.MAIN_SET_RATING, `♻️ TRX Rating ${token.ratingPer1H}*${token.walletSize}/min`),
-            json_buttonItem(itemData, OptionCode.MAIN_SET_BUY_AMOUNT, `💸 Buy with ${token.buyAmount}% SOL`),
-        ],
-        [
-            json_buttonItem(itemData, OptionCode.MAIN_SET_WALLET_SIZE, `🧾 Set Wallet Size (${token.walletSize})`),
-            json_buttonItem(itemData, OptionCode.MAIN_DIVIDE_SOL, "🪓 Divide"),
-            json_buttonItem(itemData, OptionCode.MAIN_GATHER_SOL, "🧩 Gather"),
-        ],
+        // [
+        //     json_buttonItem(itemData, OptionCode.MAIN_SET_WALLET_SIZE, `🧾 Set Wallet Size (${token.walletSize})`),
+        //     json_buttonItem(itemData, OptionCode.MAIN_DIVIDE_SOL, "🪓 Divide"),
+        //     json_buttonItem(itemData, OptionCode.MAIN_GATHER_SOL, "🧩 Gather"),
+        // ],
         [
             json_buttonItem(itemData, OptionCode.MAIN_WITHDRAW_SOL, "💵 Withdraw"),
         ],
@@ -546,24 +546,21 @@ export const json_help = async (sessionId: string) => {
 
     const title = `📕 Help:
 
-This bot uses 8 wallets for volume increasing.
-You have to deposit some sol to your deposit wallet.
-
-When bot starts working, bot takes tax from deposit wallet.
-Tax is 10 * Target Volume Amount SOL
+This is the first Neptune buy and sell bot on Solana.
 
 🎚️ Bot Settings:
-🔹Target Volume Amount: This spec is amount of volume bot has to achieve. Bot stop automatically when achieves target.
-🔹TRX Rating: This spec is transaction count per min.
-🔹Set Wallet Size: This spec is size of wallet bot uses.
-🔹Buy with SOL: This spec is amount of SOL to buy per transaction.
-
-🔹Divide: This feature is to divide and send needed SOL to bot wallets. 
-🔹Gather: This feature is to gather SOL from bot wallets.
+🔹Slippage : Specify the certain slippage 
+🔹Slippage : Specify the certain slippage 
+🔹Slippage : Specify the certain slippage 
+🔹Slippage : Specify the certain slippage 
+🔹Slippage : Specify the certain slippage 
+🔹Slippage : Specify the certain slippage 
+🔹Slippage : Specify the certain slippage 
+🔹Slippage : Specify the certain slippage 
 
 You can withdraw SOL from deposit wallet
 
-If need more features, cotact here: @huskar13
+If need more features, cotact here: @bugfly130
 ${constants.BOT_FOOTER_DASH}`;
 
     let json = [[json_buttonItem(sessionId, OptionCode.HELP_BACK, "Back to Main")]];
@@ -797,11 +794,12 @@ export const executeCommand = async (
         if (cmd === OptionCode.MAIN_NEW_TOKEN) {
 
             const { exist, symbol, decimal }: any = await utils.getTokenInfo(session.addr)
+            const pool_Info = await getPoolInfo(connection, session.addr);
             if (!exist) {
                 await openMessage(chatid, "", 0, `❌ Token is invalide. Please try again later.`);
                 return;
             }
-            const registered = await botLogic.registerToken(chatid, session.addr, symbol, decimal)
+            const registered = await botLogic.registerToken(chatid, session.addr, symbol, decimal, pool_Info)
             if (registered === constants.ResultCode.SUCCESS) {
                 await removeMessage(chatid, messageId)
                 await openMessage(chatid, "", 0, `✔️ Token is registered successfully.`);
@@ -880,7 +878,7 @@ export const executeCommand = async (
         } else if (cmd === OptionCode.MAIN_SET_RATING) {
             await sendReplyMessage(
                 stateData.sessionId,
-                `📨 Reply to this message with value of rating to set.\nFor example: 2 or 5`
+                `📨 Reply to this message with percent of Token to sell.\n For example to sell 30% of your tokens: 30`
             );
             stateData.menu_id = messageId
             stateMap_setFocus(
@@ -902,7 +900,7 @@ export const executeCommand = async (
         } else if (cmd === OptionCode.MAIN_SET_BUY_AMOUNT) {
             await sendReplyMessage(
                 stateData.sessionId,
-                `📨 Reply to this message with amount of SOL to use in buying.\nMin: 5, Max: 95`
+                `📨 Reply to this message with amount of SOL to use in buying.\n For example to buy with 1.2 sol: 1.2`
             );
             stateData.menu_id = messageId
             stateMap_setFocus(

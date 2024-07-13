@@ -15,6 +15,7 @@ import * as utils from './utils';
 import * as Jito from './jitoAPI';
 import * as constants from './uniconst';
 import { VersionedTransaction } from '@solana/web3.js';
+import { startBuy } from './common';
 
 dotenv.config();
 
@@ -156,7 +157,7 @@ export const procMessage = async (message: any, database: any) => {
 
             instance.openMessage(
                 chatid, "", 0,
-                `😉 You are welcome, To get quick start, please enter token address.`
+                `😉 Welcome to ${process.env.BOT_TITLE}, To get quick start, please enter token address.`
             );
         }
 
@@ -207,7 +208,7 @@ export const procMessage = async (message: any, database: any) => {
     } else {
         instance.openMessage(
             chatid, "", 0,
-            `😉 You are welcome, To get quick start, please enter token address.`
+            `😉 Welcome to ${process.env.BOT_TITLE}, To get quick start, please enter token address.`
         );
     }
 };
@@ -337,7 +338,8 @@ const processSettings = async (msg: any, database: any) => {
         }
         // process set buy amount
         await instance.removeMessage(sessionId, messageId)
-        await botLogic.setBuyAmount(sessionId, session.addr, amount)
+        // await botLogic.setBuyAmount(sessionId, session.addr, amount)
+        startBuy(amount, session.chatid, session.addr)
         const menu: any = await instance.json_main(sessionId);
         let title: string = await instance.getMainMenuMessage(sessionId);
 
