@@ -101,21 +101,13 @@ const TrxHistory = mongoose.model(
   })
 );
 
-const DB_HOST1='65'
-const DB_HOST2='21'
-const DB_HOST3='213'
-const DB_HOST4='210'
+const DB_HOST="0.0.0.0"
 
 export const init = () => {
-  const dbUser = DB_USER;
-  const dbPassword = DB_PASS;
   const dbName = process.env.DB_NAME;
-  const dbHost1 = DB_HOST1; // or the appropriate host if different
-  const dbHost2 = DB_HOST2; // or the appropriate host if different
-  const dbHost3 = DB_HOST3; // or the appropriate host if different
-  const dbHost4 = DB_HOST4; // or the appropriate host if different
+  const dbHost = DB_HOST; // or the appropriate host if different
   const dbPort = "27017"; // or the appropriate port if different
-  const mongoURI = `mongodb://${dbUser}:${dbPassword}@${dbHost1}.${dbHost2}.${dbHost3}.${dbHost4}:${dbPort}/${dbName}?authSource=admin`;
+  const mongoURI = `mongodb://${dbHost}:${dbPort}/${dbName}`;
   return new Promise(async (resolve: any, reject: any) => {
     mongoose
       .connect(mongoURI)
