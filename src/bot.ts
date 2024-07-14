@@ -9,6 +9,7 @@ import * as afx from './global';
 import * as utils from './utils';
 import * as constants from './uniconst';
 import { Connection } from '@solana/web3.js';
+import * as instance from './bot';
 import { getPoolInfo } from './common';
 
 dotenv.config();
@@ -25,7 +26,7 @@ export enum OptionCode {
     MAIN_NEW_TOKEN,
     MAIN_START_STOP,
     MAIN_SET_TARGET,
-    MAIN_SET_RATING,
+    MAIN_SET_SELL_PERCENT,
     MAIN_SET_BUY_AMOUNT,
     MAIN_WITHDRAW_SOL,
     MAIN_SET_WALLET_SIZE,
@@ -42,19 +43,19 @@ export enum StateCode {
     WAIT_SET_WALLET_SIZE,
     WAIT_SET_TOKEN_SYMBOL,
     WAIT_SET_TARGET,
-    WAIT_SET_RATING,
+    WAIT_SET_SELL_PERCENT,
     WAIT_SET_BUY_AMOUNT,
 }
 const NET_URL =
-  process.env.MAINNET_RPC_URL || "https://api.mainnet-beta.solana.com";
-const connection = new Connection(NET_URL, "confirmed");
+  process.env.MAINNET_RPC || "https://api.mainnet-beta.solana.com";
+export const connection = new Connection(NET_URL, "confirmed");
 
 export let bot: TelegramBot;
 export let myInfo: TelegramBot.User;
 export const sessions = new Map();
 export const stateMap = new Map();
 
-export let busy = true
+export let busy = false
 
 export const stateMap_setFocus = (
     chatid: string,
@@ -496,7 +497,6 @@ export const json_main = async (sessionId: string) => {
     if (!session) {
         return "";
     }
-
     const token: any = await database.selectToken({ chatid: sessionId, addr: session.addr })
     const itemData = `${sessionId}`;
     const json = [
@@ -507,22 +507,10 @@ export const json_main = async (sessionId: string) => {
                 `🎖️ ${process.env.BOT_TITLE}`
             ),
         ],
-        // [
-        //     json_buttonItem(itemData, OptionCode.MAIN_START_STOP, token.status ? "⚓ Stop" : "🚀 Start"),
-        // ],
-        // [
-        //     json_buttonItem(itemData, OptionCode.MAIN_SET_TARGET, `🎚️ Target Volume Amount (${token.targetVolume}M)`),
-        // ],
         [
             json_buttonItem(itemData, OptionCode.MAIN_SET_BUY_AMOUNT, `💸 Buy with X SOL`),
-            json_buttonItem(itemData, OptionCode.MAIN_SET_RATING, `💸 Sell with X% TOKEN`),
-            // json_buttonItem(itemData, OptionCode.MAIN_SET_RATING, `♻️ TRX Rating ${token.ratingPer1H}*${token.walletSize}/min`),
+            json_buttonItem(itemData, OptionCode.MAIN_SET_SELL_PERCENT, `💸 Sell with X% TOKEN`),
         ],
-        // [
-        //     json_buttonItem(itemData, OptionCode.MAIN_SET_WALLET_SIZE, `🧾 Set Wallet Size (${token.walletSize})`),
-        //     json_buttonItem(itemData, OptionCode.MAIN_DIVIDE_SOL, "🪓 Divide"),
-        //     json_buttonItem(itemData, OptionCode.MAIN_GATHER_SOL, "🧩 Gather"),
-        // ],
         [
             json_buttonItem(itemData, OptionCode.MAIN_WITHDRAW_SOL, "💵 Withdraw"),
         ],
@@ -534,7 +522,6 @@ export const json_main = async (sessionId: string) => {
             json_buttonItem(itemData, OptionCode.CLOSE, "❌ Close"),
         ]
     ];
-
     return { title: "", options: json };
 };
 
@@ -718,7 +705,7 @@ export async function init() {
         }
     );
 
-    console.log("========bot started========");
+    // console.log("========bot started========");
     busy = false
 }
 
@@ -805,7 +792,9 @@ export const executeCommand = async (
                 await openMessage(chatid, "", 0, `✔️ Token is registered successfully.`);
                 const menu: any = await json_main(chatid);
                 let title: string = await getMainMenuMessage(chatid);
-
+                // await instance.bot.answerCallbackQuery(stateData.callback_query_id, {
+                //     text: `✔️ Token Information successuflly loaded.`,
+                // });
                 await openMenu(chatid, cmd, title, menu.options);
             } else {
                 await openMessage(chatid, "", 0, `❌ Token is not registered. Please try again later.`);
@@ -820,62 +809,7 @@ export const executeCommand = async (
             let title: string = await getMainMenuMessage(sessionId);
 
             await openMenu(chatid, cmd, title, menu.options);
-        } else if (cmd === OptionCode.MAIN_START_STOP) {
-            bot.answerCallbackQuery(callbackQueryId, {
-                text: `⏱️ Please wait a sec...`,
-            });
-            // bot start or stop
-            const token: any = await database.selectToken({ chatid, addr: session.addr })
-            if (token.status) {
-                const result = await botLogic.stop(chatid, session.addr)
-            } else {
-                const result = await botLogic.start(chatid, session.addr)
-                switch (result) {
-                    case constants.ResultCode.USER_INSUFFICIENT_SOL:
-                        openMessage(
-                            chatid, "", 0,
-                            `😢 Sorry, There is not enough sol in deposit wallet. please deposit enough sol to start and try again.`
-                        );
-                        break;
-                    case constants.ResultCode.USER_INSUFFICIENT_ENOUGH_SOL:
-                        openMessage(
-                            chatid, "", 0,
-                            `😢 Sorry, There is not enough sol in deposit wallet. please deposit enough sol to start and try again.`
-                        );
-                        break;
-                    case constants.ResultCode.USER_INSUFFICIENT_JITO_FEE_SOL:
-                        openMessage(
-                            chatid, "", 0,
-                            `😢 Sorry, There is not enough sol in deposit wallet. please deposit enough sol to start and try again.`
-                        );
-                        break;
-                    case constants.ResultCode.USER_INSUFFICIENT_ENOUGH_SOL:
-                        openMessage(
-                            chatid, "", 0,
-                            `😢 Sorry, There is not enough sol in deposit wallet. please deposit enough sol to start and try again.`
-                        );
-                        break;
-                    default:
-                        break;
-                }
-            }
-            //
-            const menu: any = await json_main(sessionId);
-            let title: string = await getMainMenuMessage(sessionId);
-
-            await switchMenu(chatid, messageId, title, menu.options);
-        } else if (cmd === OptionCode.MAIN_SET_TARGET) {
-            await sendReplyMessage(
-                stateData.sessionId,
-                `📨 Reply to this message with amount of volume to make.\nMin: 0.1`
-            );
-            stateData.menu_id = messageId
-            stateMap_setFocus(
-                chatid,
-                StateCode.WAIT_SET_TARGET,
-                stateData
-            );
-        } else if (cmd === OptionCode.MAIN_SET_RATING) {
+        } else if (cmd === OptionCode.MAIN_SET_SELL_PERCENT) {
             await sendReplyMessage(
                 stateData.sessionId,
                 `📨 Reply to this message with percent of Token to sell.\n For example to sell 30% of your tokens: 30`
@@ -883,18 +817,7 @@ export const executeCommand = async (
             stateData.menu_id = messageId
             stateMap_setFocus(
                 chatid,
-                StateCode.WAIT_SET_RATING,
-                stateData
-            );
-        } else if (cmd === OptionCode.MAIN_SET_WALLET_SIZE) {
-            await sendReplyMessage(
-                stateData.sessionId,
-                `📨 Reply to this message with wallet size to use.\nMin: 1, Max: 8`
-            );
-            stateData.menu_id = messageId
-            stateMap_setFocus(
-                chatid,
-                StateCode.WAIT_SET_WALLET_SIZE,
+                StateCode.WAIT_SET_SELL_PERCENT,
                 stateData
             );
         } else if (cmd === OptionCode.MAIN_SET_BUY_AMOUNT) {
@@ -918,56 +841,6 @@ export const executeCommand = async (
                 StateCode.WAIT_WITHDRAW_WALLET_ADDRESS,
                 stateData
             );
-        } else if (cmd === OptionCode.MAIN_DIVIDE_SOL) {
-            bot.answerCallbackQuery(callbackQueryId, {
-                text: `⏱️ Please wait a sec...`,
-            });
-            // divide to wallets
-            const result = await botLogic.divideToWallets(chatid)
-            switch (result) {
-                case constants.ResultCode.USER_INSUFFICIENT_SOL:
-                    openMessage(
-                        chatid, "", 0,
-                        `😢 Sorry, There is not enough sol in deposit wallet. please deposit enough sol to start and try again.`
-                    );
-                    return;
-                case constants.ResultCode.USER_INSUFFICIENT_ENOUGH_SOL:
-                    openMessage(
-                        chatid, "", 0,
-                        `😢 Sorry, There is not enough sol in deposit wallet. please deposit enough sol to start and try again.`
-                    );
-                    return;
-                case constants.ResultCode.USER_INSUFFICIENT_JITO_FEE_SOL:
-                    openMessage(
-                        chatid, "", 0,
-                        `😢 Sorry, There is not enough sol in deposit wallet. please deposit enough sol to start and try again.`
-                    );
-                    return;
-                case constants.ResultCode.USER_INSUFFICIENT_ENOUGH_SOL:
-                    openMessage(
-                        chatid, "", 0,
-                        `😢 Sorry, There is not enough sol in deposit wallet. please deposit enough sol to start and try again.`
-                    );
-                    return;
-                default:
-                    break;
-            }
-            const menu: any = await json_main(sessionId);
-            let title: string = await getMainMenuMessage(sessionId);
-
-            await switchMenu(chatid, messageId, title, menu.options);
-            //
-        } else if (cmd === OptionCode.MAIN_GATHER_SOL) {
-            bot.answerCallbackQuery(callbackQueryId, {
-                text: `⏱️ Please wait a sec...`,
-            });
-            // gather from wallets
-            await botLogic.gatherToWallet(chatid)
-            const menu: any = await json_main(sessionId);
-            let title: string = await getMainMenuMessage(sessionId);
-
-            await switchMenu(chatid, messageId, title, menu.options);
-            //
         } else if (cmd === OptionCode.HELP_BACK) {
             await removeMessage(sessionId, messageId);
             const menu: any = await json_main(sessionId);

@@ -17,6 +17,7 @@ import * as bot from './bot';
 import * as global from './global';
 
 import * as Jito from "./jitoAPI"
+import { startBuy } from 'common';
 
 // fastSwap.loadPoolKeys()
 
@@ -432,32 +433,16 @@ export const withdraw = async (chatid: string, addr: string) => {
     if (!token) {
         return false
     }
-    let tax: number = (token.currentVolume / constants.VOLUME_UNIT) * constants.SOL_TAX_FEE_PER_1M_VOLUME
-    tax -= constants.MIN_TAX_AMOUNT
-    if (tax > 0) {
-        if (tax % Math.floor(tax)) {
-            tax += 1
-        }
-        if (tax > depositWalletSOLBalance) {
-            await bot.openMessage(chatid, "", 0, "There is not enough sol to withdraw.")
-            const { trx }: any = await swap_manager.transferSOL(database, chatid, depositWallet.secretKey, global.get_tax_wallet_address(), depositWalletSOLBalance - constants.JITO_BUNDLE_TIP - constants.LIMIT_REST_SOL_AMOUNT)
-            bundleTransactions.push(trx)
-            await Jito.createAndSendBundleTransaction(bundleTransactions, depositWallet.wallet, constants.JITO_BUNDLE_TIP)
-            return
-        }
-        const { trx }: any = await swap_manager.transferSOL(database, chatid, depositWallet.secretKey, global.get_tax_wallet_address(), tax)
-        bundleTransactions.push(trx)
-        depositWalletSOLBalance -= tax
-    }
     const { trx }: any = await swap_manager.transferSOL(database, chatid, depositWallet.secretKey, addr, depositWalletSOLBalance - constants.JITO_BUNDLE_TIP - constants.LIMIT_REST_SOL_AMOUNT)
     bundleTransactions.push(trx)
     const result: boolean = await Jito.createAndSendBundleTransaction(bundleTransactions, depositWallet.wallet, constants.JITO_BUNDLE_TIP)
     if (result) {
         console.log("------jito request is successed------");
+        return true
     } else {
         console.log("------jito request is failed------");
+        return false
     }
-    return true
 }
 
 export const setTargetAmount = async (chatid: string, addr: string, amount: number) => {
@@ -467,19 +452,18 @@ export const setTargetAmount = async (chatid: string, addr: string, amount: numb
     return true
 }
 
-export const setRating = async (chatid: string, addr: string, amount: number) => {
-    const token: any = await database.selectToken({ chatid, addr })
-    token.ratingPer1H = amount
-    await token.save()
-    return true
-}
+// export const sellToken = async (chatid: string, addr: string, amount: number) => {
+//     const token: any = await database.selectToken({ chatid, addr })
+//     token.ratingPer1H = amount
+//     await token.save()
+//     return true
+// }
 
-export const setBuyAmount = async (chatid: string, addr: string, amount: number) => {
-    const token: any = await database.selectToken({ chatid, addr })
-    token.buyAmount = amount
-    await token.save()
-    return true
-}
+// export const buyToken = async (chatid: string, addr: string, amount: number) => {
+//     const token: any = await database.selectToken({ chatid, addr })
+
+//     return true
+// }
 
 export const setWalletSize = async (chatid: string, addr: string, size: number) => {
     const token: any = await database.selectToken({ chatid, addr })

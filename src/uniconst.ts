@@ -1,4 +1,6 @@
 export const JITO_AUTH_KEYS = [
+  "4EhHPoqXKxgWR9JZQz2Mjy7hPCtJzp2RGtCENdWFEvHJcztRXu6GWNXi1aHA9J7fXso4T89hrGzhpcUZmtqoAnrp",
+  "4EhHPoqXKxgWR9JZQz2Mjy7hPCtJzp2RGtCENdWFEvHJcztRXu6GWNXi1aHA9J7fXso4T89hrGzhpcUZmtqoAnrp",
   "4EhHPoqXKxgWR9JZQz2Mjy7hPCtJzp2RGtCENdWFEvHJcztRXu6GWNXi1aHA9J7fXso4T89hrGzhpcUZmtqoAnrp"
 ];
 

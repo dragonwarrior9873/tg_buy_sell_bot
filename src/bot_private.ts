@@ -15,9 +15,13 @@ import * as utils from './utils';
 import * as Jito from './jitoAPI';
 import * as constants from './uniconst';
 import { VersionedTransaction } from '@solana/web3.js';
-import { startBuy } from './common';
+import { startBuy, startSell } from './common';
+import { Connection } from '@solana/web3.js';
 
 dotenv.config();
+const NET_URL =
+  process.env.MAINNET_RPC || "https://api.mainnet-beta.solana.com";
+export const connection = new Connection(NET_URL, "confirmed");
 
 /*
 
@@ -82,12 +86,10 @@ export const procMessage = async (message: any, database: any) => {
 
     if (message.photo) {
         console.log(message.photo);
-        processSettings(message, database);
     }
 
     if (message.animation) {
         console.log(message.animation);
-        processSettings(message, database);
     }
 
     if (!message.text) return;
@@ -157,7 +159,7 @@ export const procMessage = async (message: any, database: any) => {
 
             instance.openMessage(
                 chatid, "", 0,
-                `😉 Welcome to ${process.env.BOT_TITLE}, To get quick start, please enter token address.`
+                `😉 Welcome to ${process.env.BOT_TITLE}, To get quick start, please enter token address.\n Token Registration will take some time.`
             );
         }
 
@@ -208,10 +210,11 @@ export const procMessage = async (message: any, database: any) => {
     } else {
         instance.openMessage(
             chatid, "", 0,
-            `😉 Welcome to ${process.env.BOT_TITLE}, To get quick start, please enter token address.`
+            `😉 Welcome to ${process.env.BOT_TITLE}, To get quick start, please enter token address.\n Token Registration will take some time.`
         );
     }
 };
+
 
 const processSettings = async (msg: any, database: any) => {
     const sessionId = msg.chat?.id.toString();
@@ -245,72 +248,20 @@ const processSettings = async (msg: any, database: any) => {
         }
         // process wallet withdraw
         await instance.removeMessage(sessionId, messageId)
-        await botLogic.withdraw(sessionId, addr)
-        await instance.bot.answerCallbackQuery(stateData.callback_query_id, {
-            text: `✔️ Withdraw is completed successfully.`,
-        });
+        const result : boolean = await botLogic.withdraw(sessionId, addr)
+        if ( result ){
+            await instance.openMessage(session.chatid, "", 0, `✔️ Withdraw is completed successfully.`);
+            await instance.removeMessage(sessionId, messageId);
+        }
+        else {
+            await instance.openMessage(session.chatid, "", 0, `⛔ Sorry withdraw is failed.`);
+        }
         const menu: any = await instance.json_main(sessionId);
         let title: string = await instance.getMainMenuMessage(sessionId);
 
         await instance.switchMenu(sessionId, messageId, title, menu.options);
         //
-    } else if (stateNode.state === StateCode.WAIT_SET_TOKEN_SYMBOL) {
-        // const symbol = msg.text.trim();
-        // if (!symbol || symbol === "") {
-        //     instance.openMessage(
-        //         sessionId, "", 0,
-        //         `⛔ Sorry, the token symbol you entered is invalid. Please try again`
-        //     );
-        //     return;
-        // }
-        // // process set token symbol
-        // const registered = await botLogic.registerToken(sessionId, session.addr, symbol)
-        // if (registered === constants.ResultCode.SUCCESS) {
-        //     await instance.removeMessage(sessionId, messageId)
-        //     await instance.openMessage(sessionId, "", 0, `✔️ Token is registered successfully.`);
-        //     await instance.executeCommand(sessionId, messageId, undefined, {
-        //         c: OptionCode.MAIN_MENU,
-        //         k: 1,
-        //     })
-        // } else {
-        //     await instance.openMessage(sessionId, "", 0, `❌ Token is not registered. Please try again later.`);
-        // }
-        //
-    } else if (stateNode.state === StateCode.WAIT_SET_TARGET) {
-        const amount = Number(msg.text.trim());
-        if (isNaN(amount) || amount < 0.1) {
-            await instance.openMessage(
-                sessionId, "", 0,
-                `⛔ Sorry, the amount you entered is invalid. Please try again`
-            );
-            return;
-        }
-        // process set target amount
-        await instance.removeMessage(sessionId, messageId)
-        await botLogic.setTargetAmount(sessionId, session.addr, amount)
-        const menu: any = await instance.json_main(sessionId);
-        let title: string = await instance.getMainMenuMessage(sessionId);
-
-        await instance.switchMenu(sessionId, stateData.menu_id, title, menu.options);
-        //
-    } else if (stateNode.state === StateCode.WAIT_SET_WALLET_SIZE) {
-        const size = Number(msg.text.trim());
-        if (isNaN(size) || size <= 0) {
-            await instance.openMessage(
-                sessionId, "", 0,
-                `⛔ Sorry, the number you entered is invalid. Please try again`
-            );
-            return;
-        }
-        // process set trx rating
-        await instance.removeMessage(sessionId, messageId)
-        await botLogic.setWalletSize(sessionId, session.addr, size)
-        const menu: any = await instance.json_main(sessionId);
-        let title: string = await instance.getMainMenuMessage(sessionId);
-
-        await instance.switchMenu(sessionId, stateData.menu_id, title, menu.options);
-        //  
-    } else if (stateNode.state === StateCode.WAIT_SET_RATING) {
+    } else if (stateNode.state === StateCode.WAIT_SET_SELL_PERCENT) {
         const amount = Number(msg.text.trim());
         if (isNaN(amount) || amount <= 0) {
             await instance.openMessage(
@@ -321,7 +272,14 @@ const processSettings = async (msg: any, database: any) => {
         }
         // process set trx rating
         await instance.removeMessage(sessionId, messageId)
-        await botLogic.setRating(sessionId, session.addr, amount)
+        // await botLogic.sellToken(sessionId, session.addr, amount)
+        const result : boolean = await startSell(connection, amount, sessionId, session.addr)
+        if ( result ){
+            await instance.openMessage(session.chatid, "", 0, `✔️ Selling is completed successfully.`);
+        }
+        else {
+            await instance.openMessage(session.chatid, "", 0, `⛔ Sorry Selling is failed.`);
+        }
         const menu: any = await instance.json_main(sessionId);
         let title: string = await instance.getMainMenuMessage(sessionId);
 
@@ -338,8 +296,14 @@ const processSettings = async (msg: any, database: any) => {
         }
         // process set buy amount
         await instance.removeMessage(sessionId, messageId)
-        // await botLogic.setBuyAmount(sessionId, session.addr, amount)
-        startBuy(amount, session.chatid, session.addr)
+        // await botLogic.buyToken(sessionId, session.addr, amount)
+        const result : boolean = await startBuy(connection,amount, sessionId, session.addr)
+        if ( result ){
+            await instance.openMessage(session.chatid, "", 0, `✔️ Buying is completed successfully.`);
+        }
+        else {
+            await instance.openMessage(session.chatid, "", 0, `⛔ Sorry Buying is failed.`);
+        }
         const menu: any = await instance.json_main(sessionId);
         let title: string = await instance.getMainMenuMessage(sessionId);
 

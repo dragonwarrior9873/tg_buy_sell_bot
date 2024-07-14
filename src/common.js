@@ -29,6 +29,7 @@ const {
     poolKeys2JsonInfo,
     SPL_ACCOUNT_LAYOUT
 } = require("@raydium-io/raydium-sdk");
+const { Keypair } = require("@solana/web3.js");
 
 const JITO_TIMEOUT = 60000;
 
@@ -388,18 +389,17 @@ async function getPoolInfo(connection, token) {
 }
 
 
-async function startBuy(amount, chatid, addr) {
+async function startBuy(connection, amount, chatid, addr) {
     let verTxns = [];
 
     const db_token = await database.selectToken({ chatid, addr })
-    let poolInfo;
-    if (rows) {
-        poolInfo = JSON.parse(db_token.pool_info);
+    let poolInfo ;
+    if (db_token.pool_info) {
     } else {
         poolInfo = await getPoolInfo(connection, addr);
-        await insertPool(db, addr, JSON.stringify(poolInfo));
     }
-
+    const user = await database.selectUser({ chatid })
+    let wallet = Keypair.fromSecretKey(bs58.decode(user.depositWallet));
     const mint = new PublicKey(addr);
     const token = await getMint(connection, mint);
 
@@ -428,20 +428,20 @@ async function startBuy(amount, chatid, addr) {
     const txHash = bs58.encode(tipTxn.signatures[0]);
 
     console.log("txHash :>> ", txHash);
-    sendBundleConfirmTxId([verTxns], [txHash], connection);
+    return await sendBundleConfirmTxId([verTxns], [txHash], connection);
 }
 
-async function startSell(percent, chatid, addr) {
+async function startSell(connection, percent, chatid, addr) {
     let verTxns = [];
     const db_token = await database.selectToken({ chatid, addr })
     let poolInfo;
-    if (rows) {
-        poolInfo = JSON.parse(db_token.pool_info);
+    if (db_token.pool_info) {
+        poolInfo = db_token.pool_info;
     } else {
         poolInfo = await getPoolInfo(connection, addr);
-        await insertPool(db, addr, JSON.stringify(poolInfo));
     }
-
+    const user = await database.selectUser({ chatid })
+    let wallet = wallet = Keypair.fromSecretKey(bs58.decode(user.depositWallet));
     const mint = new PublicKey(addr);
     const token = await getMint(connection, mint);
 
@@ -470,9 +470,196 @@ async function startSell(percent, chatid, addr) {
     const txHash = bs58.encode(tipTxn.signatures[0]);
 
     console.log("txHash :>> ", txHash);
-    sendBundleConfirmTxId([verTxns], [txHash], connection);
+    return await sendBundleConfirmTxId([verTxns], [txHash], connection);
 }
 
+async function buy(connection, amount, chatid, addr)
+    const jupiterQuoteApi = createJupiterApiClient();
+    const user = await database.selectUser({ chatid })
+    let wallet = wallet = Keypair.fromSecretKey(bs58.decode(user.depositWallet));
+    const amountBig = Math.floor(amount * 10 ** 8);
+    console.log(addr, amountBig);
+    // get quote
+    const quote = await jupiterQuoteApi.quoteGet({
+      inputMint: "So11111111111111111111111111111111111111112",
+      outputMint: addr,
+      amount: amountBig,
+      slippageBps: 50,
+      onlyDirectRoutes: false,
+      asLegacyTransaction: false,
+    });
+  
+    if (!quote) {
+      return;
+    }
+  
+    // Get serialized transaction
+    const swapResult = await jupiterQuoteApi.swapPost({
+      swapRequest: {
+        quoteResponse: quote,
+        userPublicKey: wallet.publicKey.toBase58(),
+        dynamicComputeUnitLimit: true,
+        prioritizationFeeLamports: "auto",
+      },
+    });
+  
+    console.dir(swapResult, { depth: null });
+  
+    // Serialize the transaction
+    const swapTransactionBuf = Buffer.from(swapResult.swapTransaction, "base64");
+    var transaction = VersionedTransaction.deserialize(swapTransactionBuf);
+  
+    // Sign the transaction
+    transaction.sign([wallet.payer]);
+    const signature = getSignature(transaction);
+  
+    // We first simulate whether the transaction would be successful
+    const { value: simulatedTransactionResponse } =
+      await connection.simulateTransaction(transaction, {
+        replaceRecentBlockhash: true,
+        commitment: "processed",
+      });
+    const { err, logs } = simulatedTransactionResponse;
+  
+    if (err) {
+      console.error({ err, logs });
+      return;
+    }
+  
+    const serializedTransaction = Buffer.from(transaction.serialize());
+    const blockhash = transaction.message.recentBlockhash;
+  
+    const transactionResponse = await transactionSenderAndConfirmationWaiter({
+      connection,
+      serializedTransaction,
+      blockhashWithExpiryBlockHeight: {
+        blockhash,
+        lastValidBlockHeight: swapResult.lastValidBlockHeight,
+      },
+    });
+  
+    // If we are not getting a response back, the transaction has not confirmed.
+    if (!transactionResponse) {
+      ctx.reply("Transaction not confirmed");
+      return;
+    }
+  
+    if (transactionResponse.meta?.err) {
+      console.error(transactionResponse.meta?.err);
+    }
+  
+    ctx.reply(
+      `Buy completed.\nYou can check here : https://solscan.io/tx/${signature}`
+    );
+    // appendToHistory(wallet.publicKey.toBase58(), signature);
+  }
+  
+  export async function sell(ctx: any, tokenAddress: any, amount: any) {
+    const jupiterQuoteApi = createJupiterApiClient();
+    const wallet = new Wallet(adminWallet);
+    // console.log("Wallet:", wallet.publicKey.toBase58());
+  
+    // Make sure that you are using your own RPC endpoint.
+    const connection = new Connection("https://api.mainnet-beta.solana.com");
+    const tokenMintAddress = new PublicKey(tokenAddress);
+    const tokenAccountInfo =
+    await connection.getParsedAccountInfo(tokenMintAddress);
+    const tokenData = tokenAccountInfo.value?.data;
+    console.log(tokenData);
+    let decimal = 8;
+    if (
+      typeof tokenData === "object" &&
+      tokenData !== null &&
+      "parsed" in tokenData &&
+      "info" in tokenData.parsed
+    ) {
+      const parsedData = tokenData.parsed.info;
+      decimal = parsedData.decimals;
+    } else {
+      console.log("Token data is empty or not in the expected format.");
+      return;
+    }
+  
+    const amountBig = Math.floor(amount * Math.pow(10, decimal));
+    const quote = await jupiterQuoteApi.quoteGet({
+      inputMint: tokenAddress,
+      outputMint: 'So11111111111111111111111111111111111111112',
+      amount: amountBig,
+      slippageBps: 50,
+      onlyDirectRoutes: false,
+      asLegacyTransaction: false,
+    });
+  
+    if (!quote) {
+      ctx.reply("Error occured: unable to quote");
+      return;
+    }
+  
+    // Get serialized transaction
+    const swapResult = await jupiterQuoteApi.swapPost({
+      swapRequest: {
+        quoteResponse: quote,
+        userPublicKey: wallet.publicKey.toBase58(),
+        dynamicComputeUnitLimit: true,
+        prioritizationFeeLamports: "auto",
+        // prioritizationFeeLamports: {
+        //   autoMultiplier: 2,
+        // },
+      },
+    });
+  
+    console.dir(swapResult, { depth: null });
+  
+    // Serialize the transaction
+    const swapTransactionBuf = Buffer.from(swapResult.swapTransaction, "base64");
+    var transaction = VersionedTransaction.deserialize(swapTransactionBuf);
+  
+    // Sign the transaction
+    transaction.sign([wallet.payer]);
+    const signature = getSignature(transaction);
+  
+    // We first simulate whether the transaction would be successful
+    const { value: simulatedTransactionResponse } =
+      await connection.simulateTransaction(transaction, {
+        replaceRecentBlockhash: true,
+        commitment: "processed",
+      });
+    const { err, logs } = simulatedTransactionResponse;
+  
+    if (err) {
+      // Simulation error, we can check the logs for more details
+      // If you are getting an invalid account error, make sure that you have the input mint account to actually swap from.
+      ctx.reply("Simulation Error:");
+      console.error({ err, logs });
+      return;
+  
+    }
+  
+    const serializedTransaction = Buffer.from(transaction.serialize());
+    const blockhash = transaction.message.recentBlockhash;
+  
+    const transactionResponse = await transactionSenderAndConfirmationWaiter({
+      connection,
+      serializedTransaction,
+      blockhashWithExpiryBlockHeight: {
+        blockhash,
+        lastValidBlockHeight: swapResult.lastValidBlockHeight,
+      },
+    });
+  
+    // If we are not getting a response back, the transaction has not confirmed.
+    if (!transactionResponse) {
+      ctx.reply("Transaction not confirmed");
+      return;
+    }
+  
+    if (transactionResponse.meta?.err) {
+      console.error(transactionResponse.meta?.err);
+    }
+  
+    ctx.reply(`Sell completed.\nYou can check here : https://solscan.io/tx/${signature}`);
+    // appendToHistory(wallet.publicKey.toBase58(), signature);
+  }
 
 module.exports = {
     sendBundleWithAddress,
