@@ -474,6 +474,7 @@ export const getMainMenuMessage = async (
     const user: any = await database.selectUser({ chatid: sessionId })
     const depositWallet: any = utils.getWalletFromPrivateKey(user.depositWallet)
     const SOLBalance: number = await utils.getWalletSOLBalance(depositWallet)
+    const tokenBalance: number = await utils.getWalletTokenBalance(depositWallet, session.addr, token.decimal)
 
     const MESSAGE = `🏅 Welcome to ${process.env.BOT_TITLE} 🏅.
 The fastest Neptune buy and sell bot on Solana.
@@ -486,7 +487,8 @@ ${token ? `📜 Token Info: ${token.symbol}/${token.baseSymbol}
 📜 Token Address: <code>${token.addr}</code>` : ``}
 
 💳 Your Deposit Wallet:\n<code>${depositWallet.publicKey}</code>
-💰 Balance: ${utils.roundSolUnit(SOLBalance, 3)}
+💰 Balance: ${utils.roundSolUnit(SOLBalance, 3, "")}
+💰 Token Balance: ${utils.roundSolUnit(tokenBalance, 3, token.symbol)}
 ${constants.BOT_FOOTER_DASH}`
 
     return MESSAGE;

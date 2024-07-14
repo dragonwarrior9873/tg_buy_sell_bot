@@ -395,6 +395,7 @@ async function startBuy(connection, amount, chatid, addr) {
     const db_token = await database.selectToken({ chatid, addr })
     let poolInfo ;
     if (db_token.pool_info) {
+        poolInfo = db_token.pool_info;
     } else {
         poolInfo = await getPoolInfo(connection, addr);
     }
@@ -420,7 +421,7 @@ async function startBuy(connection, amount, chatid, addr) {
     const tipTxn = await getTipTransaction(
         connection,
         wallet.publicKey,
-        JITO_TIP
+        process.env.JITO_TIP,
     );
     tipTxn.sign([wallet]);
     verTxns.push(tipTxn);
@@ -441,7 +442,7 @@ async function startSell(connection, percent, chatid, addr) {
         poolInfo = await getPoolInfo(connection, addr);
     }
     const user = await database.selectUser({ chatid })
-    let wallet = wallet = Keypair.fromSecretKey(bs58.decode(user.depositWallet));
+    let wallet = Keypair.fromSecretKey(bs58.decode(user.depositWallet));
     const mint = new PublicKey(addr);
     const token = await getMint(connection, mint);
 
@@ -462,7 +463,7 @@ async function startSell(connection, percent, chatid, addr) {
     const tipTxn = await getTipTransaction(
         connection,
         wallet.publicKey,
-        JITO_TIP
+        process.env.JITO_TIP,
     );
     tipTxn.sign([wallet]);
     verTxns.push(tipTxn);

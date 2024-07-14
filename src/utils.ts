@@ -179,10 +179,10 @@ export const sRoundDecimalWithUnitAndNull = (number: number | null, digits: numb
     return number > 0 ? `+${result}${unit}` : `${result}${unit}`
 }
 
-export const roundSolUnit = (number: number, digits: number = 5) => {
+export const roundSolUnit = (number: number, digits: number = 5, symbol: string) => {
 
     if (Math.abs(number) >= 0.00001 || number === 0) {
-        return `${roundDecimal(number, digits)} SOL`
+        return `${roundDecimal(number, digits)} ` + (symbol == "" ? "SOL" : symbol)
     }
 
     number *= 1000000000
