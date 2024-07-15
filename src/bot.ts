@@ -479,7 +479,7 @@ export const getMainMenuMessage = async (
 
     const MESSAGE = `🏅 Welcome to ${process.env.BOT_TITLE} 🏅.
 The fastest Neptune buy and sell bot on Solana.
-To get quick start with another token, input your own token to make volume.
+To get quick start with token, input your own token to buy and sell tokens.
 🔍 Tap the Help button below for more info.
 
 💡 No fee for <a href="https://nep.ag/">nep.ag</a> customers.
