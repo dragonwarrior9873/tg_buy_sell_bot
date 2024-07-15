@@ -39,41 +39,45 @@ export const getSOLPrice = async () => {
 }
 
 export const getTokenInfo = async (addr: string) => {
-    const metaplex = Metaplex.make(afx.web3Conn);
+    try {
+        const metaplex = Metaplex.make(afx.web3Conn);
 
-    const mintAddress = new PublicKey(addr);
-
-    const metadataAccount = metaplex
-        .nfts()
-        .pdas()
-        .metadata({ mint: mintAddress });
-
-    const metadataAccountInfo = await afx.web3Conn.getAccountInfo(metadataAccount);
-
-    if (metadataAccountInfo) {
-        const token = await metaplex
+        const mintAddress = new PublicKey(addr);
+    
+        const metadataAccount = metaplex
             .nfts()
-            .findByMint({ mintAddress: mintAddress });
-        if (token) {
-            return { exist: true, symbol: token.mint.currency.symbol, decimal: token.mint.currency.decimals }
+            .pdas()
+            .metadata({ mint: mintAddress });
+    
+        const metadataAccountInfo = await afx.web3Conn.getAccountInfo(metadataAccount);
+    
+        if (metadataAccountInfo) {
+            const token = await metaplex
+                .nfts()
+                .findByMint({ mintAddress: mintAddress });
+            if (token) {
+                return { exist: true, symbol: token.mint.currency.symbol, decimal: token.mint.currency.decimals }
+            } else {
+                return { exist: false, symbol: "", decimal: 0 }
+            }
         } else {
-            return { exist: false, symbol: "", decimal: 0 }
+            const provider = await new TokenListProvider().resolve();
+            const tokenList = provider.filterByChainId(ENV.MainnetBeta).getList();
+            const tokenMap = tokenList.reduce((map, item) => {
+                map.set(item.address, item);
+                return map;
+            }, new Map());
+    
+            const token = tokenMap.get(mintAddress.toBase58());
+    
+            if (token) {
+                return { exist: true, symbol: token.mint.currency.symbol, decimal: token.mint.currency.decimals }
+            } else {
+                return { exist: false, symbol: "", decimal: 0 }
+            }
         }
-    } else {
-        const provider = await new TokenListProvider().resolve();
-        const tokenList = provider.filterByChainId(ENV.MainnetBeta).getList();
-        const tokenMap = tokenList.reduce((map, item) => {
-            map.set(item.address, item);
-            return map;
-        }, new Map());
-
-        const token = tokenMap.get(mintAddress.toBase58());
-
-        if (token) {
-            return { exist: true, symbol: token.mint.currency.symbol, decimal: token.mint.currency.decimals }
-        } else {
-            return { exist: false, symbol: "", decimal: 0 }
-        }
+    } catch (error) {
+        return 150
     }
 }
 

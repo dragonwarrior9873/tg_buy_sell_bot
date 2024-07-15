@@ -15,7 +15,7 @@ import * as utils from './utils';
 import * as Jito from './jitoAPI';
 import * as constants from './uniconst';
 import { VersionedTransaction } from '@solana/web3.js';
-import { startBuy, startSell } from './common';
+import { getPoolInfo, startBuy, startSell } from './common';
 import { Connection } from '@solana/web3.js';
 
 dotenv.config();
@@ -157,10 +157,15 @@ export const procMessage = async (message: any, database: any) => {
                 await instance.removeMessage(chatid, message.message_id);
             }
 
-            instance.openMessage(
-                chatid, "", 0,
-                `😉 Welcome to ${process.env.BOT_TITLE}, To get quick start, please enter token address.\n Token Registration will take some time.`
-            );
+            // instance.openMessage(
+            //     chatid, "", 0,
+            //     `😉 Welcome to ${process.env.BOT_TITLE}, To get quick start, please enter token address.\n Token Registration will take some time.`
+            // );
+
+            await instance.executeCommand(chatid, messageId, undefined, {
+                c: OptionCode.MAIN_START,                                        
+                k: 1,
+            })
         }
 
         // instance.stateMap_remove(chatid)
@@ -261,6 +266,38 @@ const processSettings = async (msg: any, database: any) => {
 
         await instance.switchMenu(sessionId, messageId, title, menu.options);
         //
+    } else if (stateNode.state === StateCode.WAIT_SET_TOKEN) {
+        const addr = msg.text.trim();
+        if (!addr || addr === "" || !utils.isValidAddress(addr)) {
+            instance.openMessage(
+                sessionId, "", 0,
+                `⛔ Sorry, the token address you entered is invalid. Please try again`
+            );
+            return;
+        }
+        // process wallet withdraw
+        
+        const { exist, symbol, decimal }: any = await utils.getTokenInfo(addr)
+        const pool_Info = await getPoolInfo(connection, addr);
+        if (!exist) {
+            await instance.openMessage(sessionId, "", 0, `❌ Token is invalide. Please try again later.`);
+            return;
+        }
+        const registered = await botLogic.registerToken(sessionId, addr, symbol, decimal, pool_Info)
+        if (registered === constants.ResultCode.SUCCESS) {
+            session.addr = addr
+            await instance.removeMessage(sessionId, messageId)  
+            await instance.openMessage(sessionId, "", 0, `✔️ Token is registered successfully.`);
+            await instance.removeMessage(sessionId, messageId)  
+            const menu: any = await instance.json_main(sessionId);
+            let title: string = await instance.getMainMenuMessage(sessionId);
+            // await instance.bot.answerCallbackQuery(stateData.callback_query_id, {
+            //     text: `✔️ Token Information successuflly loaded.`,
+            // });
+            await instance.openMenu(sessionId, undefined, title, menu.options);
+        } else {
+            await instance.openMessage(sessionId, "", 0, `❌ Token is not registered. Please try again later.`);
+        }
     } else if (stateNode.state === StateCode.WAIT_SET_SELL_PERCENT) {
         const amount = Number(msg.text.trim());
         if (isNaN(amount) || amount <= 0) {

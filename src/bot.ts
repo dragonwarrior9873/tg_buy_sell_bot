@@ -22,12 +22,14 @@ export enum OptionCode {
     TITLE,
     WELCOME = 0,
     MAIN_MENU,
+    MAIN_START,
     MAIN_HELP,
     MAIN_NEW_TOKEN,
     MAIN_START_STOP,
     MAIN_SET_TARGET,
     MAIN_SET_SELL_PERCENT,
     MAIN_SET_BUY_AMOUNT,
+    MAIN_SET_TOKEN,
     MAIN_WITHDRAW_SOL,
     MAIN_SET_WALLET_SIZE,
     MAIN_DIVIDE_SOL,
@@ -45,6 +47,7 @@ export enum StateCode {
     WAIT_SET_TARGET,
     WAIT_SET_SELL_PERCENT,
     WAIT_SET_BUY_AMOUNT,
+    WAIT_SET_TOKEN,
 }
 const NET_URL =
   process.env.MAINNET_RPC || "https://api.mainnet-beta.solana.com";
@@ -495,6 +498,36 @@ ${constants.BOT_FOOTER_DASH}`
     return MESSAGE;
 };
 
+export const getStartMenuMessage = async (
+    sessionId: string
+): Promise<string> => {
+    const session = sessions.get(sessionId);
+    if (!session) {
+        return "";
+    }
+
+    let token: any = null
+    if (session.addr != "") {
+        token = await database.selectToken({ chatid: sessionId, addr: session.addr })
+    }
+    const user: any = await database.selectUser({ chatid: sessionId })
+    const depositWallet: any = utils.getWalletFromPrivateKey(user.depositWallet)
+    const SOLBalance: number = await utils.getWalletSOLBalance(depositWallet)
+    console.log(SOLBalance)
+    const MESSAGE = `🏅 Welcome to ${process.env.BOT_TITLE} 🏅.
+The fastest Neptune buy and sell bot on Solana.
+To get quick start with token, input your own token to buy and sell tokens.
+🔍 Tap the Help button below for more info.
+
+💡 No fee for <a href="https://nep.ag/">nep.ag</a> customers.
+💳 Your Deposit Wallet:\n<code>${depositWallet.publicKey}</code>
+💰 Balance: ${utils.roundSolUnit(SOLBalance, 3, "")}
+${constants.BOT_FOOTER_DASH}`
+
+    return MESSAGE;
+};
+
+
 export const json_main = async (sessionId: string) => {
     const session = sessions.get(sessionId);
     if (!session) {
@@ -527,6 +560,39 @@ export const json_main = async (sessionId: string) => {
     ];
     return { title: "", options: json };
 };
+
+export const json_start_main = async (sessionId: string) => {
+    const session = sessions.get(sessionId);
+    if (!session) {
+        return "";
+    }
+    const token: any = await database.selectToken({ chatid: sessionId, addr: session.addr })
+    const itemData = `${sessionId}`;
+    const json = [
+        [
+            json_buttonItem(
+                itemData,
+                OptionCode.TITLE,
+                `🎖️ ${process.env.BOT_TITLE}`
+            ),
+        ],
+        [
+            json_buttonItem(itemData, OptionCode.MAIN_SET_TOKEN, `💸 Buy & Sell`),
+        ],
+        [
+            json_buttonItem(itemData, OptionCode.MAIN_WITHDRAW_SOL, "💵 Withdraw"),
+        ],
+        [
+            json_buttonItem(itemData, OptionCode.MAIN_REFRESH, "🔄 Refresh"),
+            json_buttonItem(itemData, OptionCode.MAIN_HELP, "📖 Help"),
+        ],
+        [
+            json_buttonItem(itemData, OptionCode.CLOSE, "❌ Close"),
+        ]
+    ];
+    return { title: "", options: json };
+};
+
 
 export const json_help = async (sessionId: string) => {
     const session = sessions.get(sessionId);
@@ -782,7 +848,7 @@ export const executeCommand = async (
 
     try {
         if (cmd === OptionCode.MAIN_NEW_TOKEN) {
-
+            console.log("token address2", session.addr)
             const { exist, symbol, decimal }: any = await utils.getTokenInfo(session.addr)
             const pool_Info = await getPoolInfo(connection, session.addr);
             if (!exist) {
@@ -791,7 +857,7 @@ export const executeCommand = async (
             }
             const registered = await botLogic.registerToken(chatid, session.addr, symbol, decimal, pool_Info)
             if (registered === constants.ResultCode.SUCCESS) {
-                await removeMessage(chatid, messageId)
+                await removeMessage(chatid, messageId)  
                 await openMessage(chatid, "", 0, `✔️ Token is registered successfully.`);
                 const menu: any = await json_main(chatid);
                 let title: string = await getMainMenuMessage(chatid);
@@ -812,7 +878,13 @@ export const executeCommand = async (
             let title: string = await getMainMenuMessage(sessionId);
 
             await openMenu(chatid, cmd, title, menu.options);
-        } else if (cmd === OptionCode.MAIN_SET_SELL_PERCENT) {
+        } else if (cmd === OptionCode.MAIN_START) {
+            const menu: any = await json_start_main(sessionId);
+            let title: string = await getStartMenuMessage(sessionId);
+
+            await openMenu(chatid, cmd, title, menu.options);
+        }
+        else if (cmd === OptionCode.MAIN_SET_SELL_PERCENT) {
             await sendReplyMessage(
                 stateData.sessionId,
                 `📨 Reply to this message with percent of Token to sell.\n For example to sell 30% of your tokens: 30`
@@ -832,6 +904,18 @@ export const executeCommand = async (
             stateMap_setFocus(
                 chatid,
                 StateCode.WAIT_SET_BUY_AMOUNT,
+                stateData
+            );
+        } else if (cmd === OptionCode.MAIN_SET_TOKEN) {
+            await sendReplyMessage(
+                stateData.sessionId,
+                `📨 Paste token contract to begin buy & sell ↔️`
+            );
+            stateData.menu_id = messageId
+            
+            stateMap_setFocus(
+                chatid,
+                StateCode.WAIT_SET_TOKEN,
                 stateData
             );
         } else if (cmd === OptionCode.MAIN_WITHDRAW_SOL) {
