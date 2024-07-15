@@ -474,6 +474,7 @@ export const getMainMenuMessage = async (
     const user: any = await database.selectUser({ chatid: sessionId })
     const depositWallet: any = utils.getWalletFromPrivateKey(user.depositWallet)
     const SOLBalance: number = await utils.getWalletSOLBalance(depositWallet)
+    console.log(SOLBalance)
     const tokenBalance: number = await utils.getWalletTokenBalance(depositWallet, session.addr, token.decimal)
 
     const MESSAGE = `🏅 Welcome to ${process.env.BOT_TITLE} 🏅.
