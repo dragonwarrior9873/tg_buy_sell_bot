@@ -429,10 +429,10 @@ export const withdraw = async (chatid: string, addr: string) => {
     const bundleTransactions: any[] = []
 
     const session: any = bot.sessions.get(chatid)
-    const token: any = await database.selectToken({ chatid, addr: session.addr })
-    if (!token) {
-        return false
-    }
+    // const token: any = await database.selectToken({ chatid, addr: session.addr })
+    // if (!token) {
+    //     return false
+    // }
     const { trx }: any = await swap_manager.transferSOL(database, chatid, depositWallet.secretKey, addr, depositWalletSOLBalance - constants.JITO_BUNDLE_TIP - constants.LIMIT_REST_SOL_AMOUNT)
     bundleTransactions.push(trx)
     const result: boolean = await Jito.createAndSendBundleTransaction(bundleTransactions, depositWallet.wallet, constants.JITO_BUNDLE_TIP)

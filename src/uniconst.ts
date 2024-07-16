@@ -6,7 +6,7 @@ export const JITO_AUTH_KEYS = [
 
 export const PRIORITY_RATE = 100000
 
-export const JITO_BUNDLE_TIP = 0.001
+export const JITO_BUNDLE_TIP = 0.0003
 export const JITO_FEE_AMOUNT = 1;
 
 export const MIN_DIVIDE_SOL = 0.1;

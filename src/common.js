@@ -466,6 +466,49 @@ async function startSell(connection, percent, chatid, addr) {
   return await sendBundleConfirmTxId([verTxns], [txHash], connection);
 }
 
+async function getPriceImapct5(token) {
+  return 0;
+}
+
+async function getTokenDetailInfo(token) {
+  console.log("getTokenDetailInfo");
+  const API_KEY = "d38763937c8e4f628d083b1050e94a03";
+
+  //price
+  const options = {
+    method: "GET",
+    headers: {
+      "x-chain": "solana",
+      "X-API-KEY": API_KEY,
+    },
+  };
+
+  const { data } = await (
+    await fetch(
+      `https://public-api.birdeye.so/defi/token_overview?address=${token}`,
+      options
+    )
+  ).json();
+
+  console.log(data)
+
+  const price = data.price;
+  let mc = data.mc;
+  if (!mc) {
+    mc = price * 10 ** data.decimals
+  }
+  const priceChange5mPercent = data.priceChange30mPercent;
+  const priceChange1hPercent = data.priceChange1hPercent;
+  const priceChange6hPercent = data.priceChange6hPercent;
+  const priceChange24hPercent = data.priceChange24hPercent;
+
+  console.log(price, mc, priceChange5mPercent, priceChange1hPercent, priceChange6hPercent, priceChange24hPercent);
+
+  const priceImpact = await getPriceImapct5(token);
+
+  return {price, mc, priceChange5mPercent, priceChange1hPercent, priceChange6hPercent, priceChange24hPercent, priceImpact}
+}
+
 module.exports = {
   sendBundleConfirmTxId,
   buildBuyTransaction,
@@ -474,4 +517,5 @@ module.exports = {
   getPoolInfo,
   startBuy,
   startSell,
+  getTokenDetailInfo
 };

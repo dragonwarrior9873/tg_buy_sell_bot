@@ -278,10 +278,23 @@ const processSettings = async (msg: any, database: any) => {
         // process wallet withdraw
         
         const { exist, symbol, decimal }: any = await utils.getTokenInfo(addr)
-        const pool_Info = await getPoolInfo(connection, addr);
         if (!exist) {
             await instance.openMessage(sessionId, "", 0, `❌ Token is invalide. Please try again later.`);
             return;
+        }
+        const token = await database.selectToken({addr:session.addr})
+        console.log( "token is ", token)
+  
+        let pool_Info;
+        //@ts-ignore
+        if ( token && token.pool_info ){
+            //@ts-ignore
+          console.log( "token pool_info is ", token.pool_Info)
+          //@ts-ignore
+          pool_Info = token.pool_Info
+        }
+        else {
+          pool_Info = await getPoolInfo(connection, session.addr);
         }
         const registered = await botLogic.registerToken(sessionId, addr, symbol, decimal, pool_Info)
         if (registered === constants.ResultCode.SUCCESS) {
