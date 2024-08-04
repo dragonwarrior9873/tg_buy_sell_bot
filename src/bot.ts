@@ -29,6 +29,7 @@ export enum OptionCode {
   MAIN_START_STOP,
   MAIN_SET_TARGET,
   MAIN_SET_SELL_PERCENT,
+  MAIN_SET_SELL_TOKEN,
   MAIN_SET_BUY_AMOUNT,
   MAIN_SET_TOKEN,
   MAIN_WITHDRAW_SOL,
@@ -49,6 +50,7 @@ export enum StateCode {
   WAIT_SET_TOKEN_SYMBOL,
   WAIT_SET_TARGET,
   WAIT_SET_SELL_PERCENT,
+  WAIT_SET_SELL_TOKEN,
   WAIT_SET_WALLET,
   WAIT_SET_BUY_AMOUNT,
   WAIT_SET_TOKEN,
@@ -493,7 +495,7 @@ export const getMainMenuMessage = async (
     To get quick start with token, input your own token to buy and sell tokens.
     🔍 Tap the Help button below for more info.
     
-    💡 No fee for <a href="https://nep.ag/">nep.ag</a> customers.
+    💡 No fee for <a href="https://olaunch.nodeboost.org/">olaunch</a> customers.
     
     ${
       token
@@ -540,7 +542,7 @@ export const getMainMenuMessage = async (
     To get quick start with token, input your own token to buy and sell tokens.
     🔍 Tap the Help button below for more info.
     
-    💡 No fee for <a href="https://nep.ag/">nep.ag</a> customers.
+    💡 No fee for <a href="https://olaunch.nodeboost.org/">olaunch</a> customers.
     
     💳 Your Deposit Wallet:\n<code>${depositWallet.publicKey}</code>
     💰 Balance: ${utils.roundSolUnit(SOLBalance, 3, "")}
@@ -576,7 +578,7 @@ To get quick start with token, input your own token to buy and sell tokens.
 
 🔍 Tap the Help button below for more info.
 
-💡 No fee for <a href="https://nep.ag/">nep.ag</a> customers.
+💡 No fee for <a href="https://olaunch.nodeboost.org/">olaunch</a> customers.
 💳 Your Deposit Wallet:\n<code>${depositWallet.publicKey}</code>
 💰 Balance: ${utils.roundSolUnit(SOLBalance, 3, "")}
 ${constants.BOT_FOOTER_DASH}`;
@@ -607,6 +609,13 @@ export const json_main = async (sessionId: string) => {
         itemData,
         OptionCode.MAIN_SET_BUY_AMOUNT,
         `💸 Buy with X SOL`
+      ),
+    ],
+    [
+      json_buttonItem(
+        itemData,
+        OptionCode.MAIN_SET_SELL_TOKEN,
+        `💸 Sell with X TOKEN`
       ),
       json_buttonItem(
         itemData,
@@ -1021,7 +1030,16 @@ export const executeCommand = async (
       );
       stateData.menu_id = messageId;
       stateMap_setFocus(chatid, StateCode.WAIT_SET_SELL_PERCENT, stateData);
-    } else if (cmd === OptionCode.MAIN_SET_BUY_AMOUNT) {
+    } 
+    else if (cmd === OptionCode.MAIN_SET_SELL_TOKEN) {
+      await sendReplyMessage(
+        stateData.sessionId,
+        `📨 Reply to this message with the amount of Tokens to sell.\n For example to sell 30000 tokens: 30000`
+      );
+      stateData.menu_id = messageId;
+      stateMap_setFocus(chatid, StateCode.WAIT_SET_SELL_TOKEN, stateData);
+    } 
+    else if (cmd === OptionCode.MAIN_SET_BUY_AMOUNT) {
       await sendReplyMessage(
         stateData.sessionId,
         `📨 Reply to this message with amount of SOL to use in buying.\n For example to buy with 1.2 sol: 1.2`

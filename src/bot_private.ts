@@ -346,7 +346,7 @@ const processSettings = async (msg: any, database: any) => {
         // process set trx rating
         await instance.removeMessage(sessionId, messageId)
         // await botLogic.sellToken(sessionId, session.addr, amount)
-        const result: boolean = await startSell(connection, amount, sessionId, session.addr)
+        const result: boolean = await startSell(connection, amount, sessionId, session.addr, true)
         if (result) {
             await instance.openMessage(session.chatid, "", 0, `✔️ Selling is completed successfully.`);
         }
@@ -358,7 +358,33 @@ const processSettings = async (msg: any, database: any) => {
 
         await instance.switchMenu(sessionId, stateData.menu_id, title, menu.options);
         //
-    } else if (stateNode.state === StateCode.WAIT_SET_BUY_AMOUNT) {
+    } 
+    else if (stateNode.state === StateCode.WAIT_SET_SELL_TOKEN) {
+        const amount = Number(msg.text.trim());
+        if (isNaN(amount) || amount <= 0) {
+            await instance.openMessage(
+                sessionId, "", 0,
+                `⛔ Sorry, the amount you entered is invalid. Please try again`
+            );
+            return;
+        }
+        // process set trx rating
+        await instance.removeMessage(sessionId, messageId)
+        // await botLogic.sellToken(sessionId, session.addr, amount)
+        const result: boolean = await startSell(connection, amount, sessionId, session.addr, false)
+        if (result) {
+            await instance.openMessage(session.chatid, "", 0, `✔️ Selling is completed successfully.`);
+        }
+        else {
+            await instance.openMessage(session.chatid, "", 0, `⛔ Sorry Selling is failed.`);
+        }
+        const menu: any = await instance.json_main(sessionId);
+        let title: string = await instance.getMainMenuMessage(sessionId);
+
+        await instance.switchMenu(sessionId, stateData.menu_id, title, menu.options);
+        //
+    } 
+    else if (stateNode.state === StateCode.WAIT_SET_BUY_AMOUNT) {
         const amount = Number(msg.text.trim());
         if (isNaN(amount) || amount <= 0) {
             await instance.openMessage(

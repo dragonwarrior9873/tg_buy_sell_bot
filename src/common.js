@@ -96,7 +96,8 @@ async function buildSellTransaction(
   seller,
   token,
   poolInfo,
-  percent
+  percent,
+  isPercent
 ) {
   try {
     const associatedToken = getAssociatedTokenAddressSync(
@@ -115,7 +116,13 @@ async function buildSellTransaction(
       console.log("No token balance.");
       return;
     }
-    const tenPercent = tokenBalance.muln(parseInt(percent) / 100);
+    let tenPercent;
+    if(isPercent){
+      tenPercent = tokenBalance.muln(parseInt(percent) / 100);
+    }
+    else {
+      tenPercent = new BN(parseInt(percent) * ( 10 ** token.decimals) )
+    }
     const walletTokenAccount = await getWalletTokenAccount(
       connection,
       seller
@@ -424,7 +431,7 @@ async function startBuy(connection, amount, chatid, addr) {
   return await sendBundleConfirmTxId([verTxns], [txHash], connection);
 }
 
-async function startSell(connection, percent, chatid, addr) {
+async function startSell(connection, percent, chatid, addr, isPercent) {
   let verTxns = [];
   const db_token = await database.selectToken({ chatid, addr });
   let poolInfo;
@@ -443,7 +450,8 @@ async function startSell(connection, percent, chatid, addr) {
     wallet.publicKey,
     token,
     poolInfo,
-    percent
+    percent,
+    isPercent
   );
   for (let tx of txns) {
     if (tx instanceof VersionedTransaction) {
