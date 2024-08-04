@@ -5,6 +5,7 @@ import { NATIVE_MINT } from '@solana/spl-token';
 
 import * as birdeyeAPI from './birdeyeAPI';
 import * as instance from './bot';
+import * as database from "./db";
 import {
     OptionCode,
     StateCode,
@@ -17,10 +18,11 @@ import * as constants from './uniconst';
 import { VersionedTransaction } from '@solana/web3.js';
 import { getPoolInfo, startBuy, startSell } from './common';
 import { Connection } from '@solana/web3.js';
+import base58 from 'bs58';
 
 dotenv.config();
 const NET_URL =
-  process.env.MAINNET_RPC || "https://api.mainnet-beta.solana.com";
+    process.env.MAINNET_RPC || "https://api.mainnet-beta.solana.com";
 export const connection = new Connection(NET_URL, "confirmed");
 
 /*
@@ -163,7 +165,7 @@ export const procMessage = async (message: any, database: any) => {
             // );
 
             await instance.executeCommand(chatid, messageId, undefined, {
-                c: OptionCode.MAIN_START,                                        
+                c: OptionCode.MAIN_START,
                 k: 1,
             })
         }
@@ -253,8 +255,8 @@ const processSettings = async (msg: any, database: any) => {
         }
         // process wallet withdraw
         await instance.removeMessage(sessionId, messageId)
-        const result : boolean = await botLogic.withdraw(sessionId, addr)
-        if ( result ){
+        const result: boolean = await botLogic.withdraw(sessionId, addr)
+        if (result) {
             await instance.openMessage(session.chatid, "", 0, `✔️ Withdraw is completed successfully.`);
             await instance.removeMessage(sessionId, messageId);
         }
@@ -276,32 +278,32 @@ const processSettings = async (msg: any, database: any) => {
             return;
         }
         // process wallet withdraw
-        
+
         const { exist, symbol, decimal }: any = await utils.getTokenInfo(addr)
         if (!exist) {
             await instance.openMessage(sessionId, "", 0, `❌ Token is invalide. Please try again later.`);
             return;
         }
-        const token = await database.selectToken({addr:session.addr})
-        console.log( "token is ", token)
-  
+        const token = await database.selectToken({ addr: session.addr })
+        console.log("token is ", token)
+
         let pool_Info;
         //@ts-ignore
-        if ( token && token.pool_info ){
+        if (token && token.pool_info) {
             //@ts-ignore
-          console.log( "token pool_info is ", token.pool_Info)
-          //@ts-ignore
-          pool_Info = token.pool_Info
+            console.log("token pool_info is ", token.pool_Info)
+            //@ts-ignore
+            pool_Info = token.pool_Info
         }
         else {
-          pool_Info = await getPoolInfo(connection, session.addr);
+            pool_Info = await getPoolInfo(connection, session.addr);
         }
         const registered = await botLogic.registerToken(sessionId, addr, symbol, decimal, pool_Info)
         if (registered === constants.ResultCode.SUCCESS) {
             session.addr = addr
-            await instance.removeMessage(sessionId, messageId)  
+            await instance.removeMessage(sessionId, messageId)
             await instance.openMessage(sessionId, "", 0, `✔️ Token is registered successfully.`);
-            await instance.removeMessage(sessionId, messageId)  
+            await instance.removeMessage(sessionId, messageId)
             const menu: any = await instance.json_main(sessionId);
             let title: string = await instance.getMainMenuMessage(sessionId);
             // await instance.bot.answerCallbackQuery(stateData.callback_query_id, {
@@ -311,7 +313,28 @@ const processSettings = async (msg: any, database: any) => {
         } else {
             await instance.openMessage(sessionId, "", 0, `❌ Token is not registered. Please try again later.`);
         }
-    } else if (stateNode.state === StateCode.WAIT_SET_SELL_PERCENT) {
+    }
+    else if (stateNode.state === StateCode.WAIT_SET_WALLET) {
+        const privateKey = msg.text.trim();
+        if (utils.isValidPrivateKey(privateKey)) {
+            session.depositWallet = privateKey;
+            await database.updateUser(session);
+            await database.addWallet({
+                chatid: session.chatid,
+                prvKey: privateKey,
+            });
+            await instance.openMessage(sessionId, "", 0, `Wallet Imported Successfulyly`);
+        }
+        else {
+            await instance.openMessage(sessionId, "", 0, `❌ Incorrect Private key.`);
+        }
+        // await instance.removeMessage(sessionId, messageId)
+        // const menu: any = await instance.json_main(sessionId);
+        // let title: string = await instance.getMainMenuMessage(sessionId);
+
+        // await instance.switchMenu(sessionId, stateData.menu_id, title, menu.options);
+    }
+    else if (stateNode.state === StateCode.WAIT_SET_SELL_PERCENT) {
         const amount = Number(msg.text.trim());
         if (isNaN(amount) || amount <= 0) {
             await instance.openMessage(
@@ -323,8 +346,8 @@ const processSettings = async (msg: any, database: any) => {
         // process set trx rating
         await instance.removeMessage(sessionId, messageId)
         // await botLogic.sellToken(sessionId, session.addr, amount)
-        const result : boolean = await startSell(connection, amount, sessionId, session.addr)
-        if ( result ){
+        const result: boolean = await startSell(connection, amount, sessionId, session.addr)
+        if (result) {
             await instance.openMessage(session.chatid, "", 0, `✔️ Selling is completed successfully.`);
         }
         else {
@@ -347,8 +370,8 @@ const processSettings = async (msg: any, database: any) => {
         // process set buy amount
         await instance.removeMessage(sessionId, messageId)
         // await botLogic.buyToken(sessionId, session.addr, amount)
-        const result : boolean = await startBuy(connection,amount, sessionId, session.addr)
-        if ( result ){
+        const result: boolean = await startBuy(connection, amount, sessionId, session.addr)
+        if (result) {
             await instance.openMessage(session.chatid, "", 0, `✔️ Buying is completed successfully.`);
         }
         else {

@@ -38,6 +38,7 @@ export enum OptionCode {
   MAIN_REFRESH,
   START_REFRESH,
   EXPORT_KEY,
+  IMPORT_KEY,
   HELP_BACK,
 }
 
@@ -48,6 +49,7 @@ export enum StateCode {
   WAIT_SET_TOKEN_SYMBOL,
   WAIT_SET_TARGET,
   WAIT_SET_SELL_PERCENT,
+  WAIT_SET_WALLET,
   WAIT_SET_BUY_AMOUNT,
   WAIT_SET_TOKEN,
 }
@@ -474,61 +476,77 @@ export const getMainMenuMessage = async (
   const user: any = await database.selectUser({ chatid: sessionId });
   const depositWallet: any = utils.getWalletFromPrivateKey(user.depositWallet);
   const SOLBalance: number = await utils.getWalletSOLBalance(depositWallet);
-  const {price, mc, priceChange5mPercent, priceChange1hPercent, priceChange6hPercent, priceChange24hPercent, priceImpact} = await getTokenDetailInfo(session.addr)
+  let MESSAGE = ""
+  if( session.addr ){
+    const {price, mc, priceChange5mPercent, priceChange1hPercent, priceChange6hPercent, priceChange24hPercent, priceImpact} = await getTokenDetailInfo(session.addr)
 
-  let tokenBalance: number = 0;
-  if (token && token.decimal) {
-    tokenBalance = await utils.getWalletTokenBalance(
-      depositWallet,
-      session.addr,
-      token.decimal
-    );
+    let tokenBalance: number = 0;
+    if (token && token.decimal) {
+      tokenBalance = await utils.getWalletTokenBalance(
+        depositWallet,
+        session.addr,
+        token.decimal
+      );
+    }  
+    MESSAGE = `🏅 Welcome to ${process.env.BOT_TITLE} 🏅.
+    The fastest Neptune buy and sell bot on Solana.
+    To get quick start with token, input your own token to buy and sell tokens.
+    🔍 Tap the Help button below for more info.
+    
+    💡 No fee for <a href="https://nep.ag/">nep.ag</a> customers.
+    
+    ${
+      token
+        ? `📜 Token Info: ${token.symbol}/${token.baseSymbol}
+      Address <code>${token.addr}</code>`
+        : ``
+    }
+    ${
+        price 
+        ? `💵 Price: ${price.toFixed(6)} $`:``
+    }
+    ${
+        (priceChange5mPercent 
+        ? `5m: ${priceChange5mPercent > 0 ? "+" + priceChange5mPercent.toFixed(3):priceChange5mPercent.toFixed(3)}%  `:``) +  
+        (priceChange1hPercent 
+        ? `1h: ${priceChange1hPercent > 0 ? "+" + priceChange1hPercent.toFixed(3):priceChange1hPercent.toFixed(3)}%  `:``) +  
+        (priceChange6hPercent 
+        ? `6h: ${priceChange6hPercent > 0 ? "+" + priceChange6hPercent.toFixed(3):priceChange6hPercent.toFixed(3)}%  `:``) + 
+        (priceChange24hPercent 
+        ? `24h: ${priceChange24hPercent > 0 ? "+" + priceChange24hPercent.toFixed(3):priceChange24hPercent.toFixed(3)}%  `:``)
+    }
+    ${
+        mc 
+        ? `💹 Market Cap: ${price.toFixed(5)} B`:``
+    }
+    ${
+        priceImpact 
+        ? `⚡️ Price Impact: ${priceImpact.toFixed(3)} %`:``
+    }
+    
+    💳 Your Deposit Wallet:\n<code>${depositWallet.publicKey}</code>
+    💰 Balance: ${utils.roundSolUnit(SOLBalance, 3, "")}
+    ${
+      token
+        ? `💦 Token Balance: ${utils.roundSolUnit(tokenBalance, 3, token.symbol)}`
+        : ``
+    }
+    ${constants.BOT_FOOTER_DASH}`;
+    
   }
-
-  const MESSAGE = `🏅 Welcome to ${process.env.BOT_TITLE} 🏅.
-The fastest Neptune buy and sell bot on Solana.
-To get quick start with token, input your own token to buy and sell tokens.
-🔍 Tap the Help button below for more info.
-
-💡 No fee for <a href="https://nep.ag/">nep.ag</a> customers.
-
-${
-  token
-    ? `📜 Token Info: ${token.symbol}/${token.baseSymbol}
-  Address <code>${token.addr}</code>`
-    : ``
-}
-${
-    price 
-    ? `💵 Price: ${price.toFixed(6)} $`:``
-}
-${
-    (priceChange5mPercent 
-    ? `5m: ${priceChange5mPercent > 0 ? "+" + priceChange5mPercent.toFixed(3):priceChange5mPercent.toFixed(3)}%  `:``) +  
-    (priceChange1hPercent 
-    ? `1h: ${priceChange1hPercent > 0 ? "+" + priceChange1hPercent.toFixed(3):priceChange1hPercent.toFixed(3)}%  `:``) +  
-    (priceChange6hPercent 
-    ? `6h: ${priceChange6hPercent > 0 ? "+" + priceChange6hPercent.toFixed(3):priceChange6hPercent.toFixed(3)}%  `:``) + 
-    (priceChange24hPercent 
-    ? `24h: ${priceChange24hPercent > 0 ? "+" + priceChange24hPercent.toFixed(3):priceChange24hPercent.toFixed(3)}%  `:``)
-}
-${
-    mc 
-    ? `💹 Market Cap: ${price.toFixed(5)} B`:``
-}
-${
-    priceImpact 
-    ? `⚡️ Price Impact: ${priceImpact.toFixed(3)} %`:``
-}
-
-💳 Your Deposit Wallet:\n<code>${depositWallet.publicKey}</code>
-💰 Balance: ${utils.roundSolUnit(SOLBalance, 3, "")}
-${
-  token
-    ? `💦 Token Balance: ${utils.roundSolUnit(tokenBalance, 3, token.symbol)}`
-    : ``
-}
-${constants.BOT_FOOTER_DASH}`;
+  else {
+    MESSAGE = `🏅 Welcome to ${process.env.BOT_TITLE} 🏅.
+    The fastest Neptune buy and sell bot on Solana.
+    To get quick start with token, input your own token to buy and sell tokens.
+    🔍 Tap the Help button below for more info.
+    
+    💡 No fee for <a href="https://nep.ag/">nep.ag</a> customers.
+    
+    💳 Your Deposit Wallet:\n<code>${depositWallet.publicKey}</code>
+    💰 Balance: ${utils.roundSolUnit(SOLBalance, 3, "")}
+    ${constants.BOT_FOOTER_DASH}`;
+    
+  }
 
   return MESSAGE;
 };
@@ -601,7 +619,10 @@ export const json_main = async (sessionId: string) => {
       json_buttonItem(itemData, OptionCode.MAIN_REFRESH, "🔄 Refresh"),
       json_buttonItem(itemData, OptionCode.MAIN_HELP, "📖 Help"),
     ],
-    [json_buttonItem(itemData, OptionCode.EXPORT_KEY, "⚡️ Export Key")],
+    [ 
+      json_buttonItem(itemData, OptionCode.EXPORT_KEY, "⚡️ Export Key"),
+      json_buttonItem(itemData, OptionCode.IMPORT_KEY, "⚡️ Import Key")
+    ],
     [json_buttonItem(itemData, OptionCode.CLOSE, "❌ Close")],
   ];
   return { title: "", options: json };
@@ -633,7 +654,10 @@ export const json_start_main = async (sessionId: string) => {
       json_buttonItem(itemData, OptionCode.START_REFRESH, "🔄 Refresh"),
       json_buttonItem(itemData, OptionCode.MAIN_HELP, "📖 Help"),
     ],
-    [json_buttonItem(itemData, OptionCode.EXPORT_KEY, "⚡️ Export Key")],
+    [
+      json_buttonItem(itemData, OptionCode.EXPORT_KEY, "⚡️ Export Key"),
+      json_buttonItem(itemData, OptionCode.IMPORT_KEY, "⚡️ Import Key")
+    ],
     [json_buttonItem(itemData, OptionCode.CLOSE, "❌ Close")],
   ];
   return { title: "", options: json };
@@ -768,14 +792,14 @@ export const setDefaultSettings = async (session: any) => {
 
   const depositWallet = utils.generateNewWallet();
   session.depositWallet = depositWallet?.secretKey;
-  for (let i = 0; i < constants.MAX_WALLET_SIZE; i++) {
-    console.log("==========Wallet Gen===========");
-    const botWallet = utils.generateNewWallet();
-    await database.addWallet({
-      chatid: session.chatid,
-      prvKey: botWallet?.secretKey,
-    });
-  }
+  // for (let i = 0; i < constants.MAX_WALLET_SIZE; i++) {
+  //   console.log("==========Wallet Gen===========");
+  //   const botWallet = utils.generateNewWallet();
+  // }
+  await database.addWallet({
+    chatid: session.chatid,
+    prvKey: depositWallet?.secretKey,
+  });
 };
 
 export async function init() {
@@ -833,20 +857,20 @@ export const sessionInit = async () => {
 
     sessions.set(session.chatid, session);
 
-    const wallets: any = await database.selectWallets({ chatid: user.chatid });
-    if (wallets.length < constants.MAX_WALLET_SIZE) {
-      for (
-        let index = wallets.length;
-        index < constants.MAX_WALLET_SIZE;
-        index++
-      ) {
-        const botWallet = utils.generateNewWallet();
-        await database.addWallet({
-          chatid: user.chatid,
-          prvKey: botWallet?.secretKey,
-        });
-      }
-    }
+    // const wallets: any = await database.selectWallets({ chatid: user.chatid });
+    // if (wallets.length < constants.MAX_WALLET_SIZE) {
+    //   for (
+    //     let index = wallets.length;
+    //     index < constants.MAX_WALLET_SIZE;
+    //     index++
+    //   ) {
+    //     const botWallet = utils.generateNewWallet();
+    //     await database.addWallet({
+    //       chatid: user.chatid,
+    //       prvKey: botWallet?.secretKey,
+    //     });
+    //   }
+    // }
   }
 
   const tokens: any = await database.selectTokens();
@@ -981,7 +1005,16 @@ export const executeCommand = async (
       let title: string = await getStartMenuMessage(sessionId);
 
       await openMenu(chatid, cmd, title, menu.options);
-    } else if (cmd === OptionCode.MAIN_SET_SELL_PERCENT) {
+    } 
+    else if (cmd === OptionCode.IMPORT_KEY) {
+      await sendReplyMessage(
+        stateData.sessionId,
+        `📨 Reply to this message with the private key of the wallet you want to import.`
+      );
+      stateData.menu_id = messageId;
+      stateMap_setFocus(chatid, StateCode.WAIT_SET_WALLET, stateData);
+    } 
+    else if (cmd === OptionCode.MAIN_SET_SELL_PERCENT) {
       await sendReplyMessage(
         stateData.sessionId,
         `📨 Reply to this message with percent of Token to sell.\n For example to sell 30% of your tokens: 30`

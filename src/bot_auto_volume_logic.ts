@@ -423,7 +423,7 @@ export const withdraw = async (chatid: string, addr: string) => {
     }
     const depositWallet: any = utils.getWalletFromPrivateKey(user.depositWallet)
     let depositWalletSOLBalance: number = await utils.getWalletSOLBalance(depositWallet)
-    if (depositWalletSOLBalance <= 0) {
+    if (depositWalletSOLBalance - constants.JITO_BUNDLE_TIP - constants.LIMIT_REST_SOL_AMOUNT <= 0) {
         return false
     }
     const bundleTransactions: any[] = []
