@@ -478,6 +478,29 @@ async function getPriceImapct5(token) {
   return 0;
 }
 
+async function getSolPrice() {
+  console.log("getSolPrice");
+  const API_KEY = "d38763937c8e4f628d083b1050e94a03";
+
+  //price
+  const options = {
+    method: "GET",
+    headers: {
+      "x-chain": "solana",
+      "X-API-KEY": API_KEY,
+    },
+  };
+
+  const { data } = await (
+    await fetch(
+      `https://public-api.birdeye.so/defi/price?address=So11111111111111111111111111111111111111112`,
+      options
+    )
+  ).json();
+
+  return data?.value;
+}
+
 async function getTokenDetailInfo(token) {
   console.log("getTokenDetailInfo");
   const API_KEY = "d38763937c8e4f628d083b1050e94a03";
@@ -498,7 +521,7 @@ async function getTokenDetailInfo(token) {
     )
   ).json();
 
-  console.log(data)
+  // console.log(data)
 
   const price = data.price;
   let mc = data.mc;

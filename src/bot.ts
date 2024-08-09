@@ -481,6 +481,7 @@ export const getMainMenuMessage = async (
   let MESSAGE = ""
   if( session.addr ){
     const {price, mc, priceChange5mPercent, priceChange1hPercent, priceChange6hPercent, priceChange24hPercent, priceImpact} = await getTokenDetailInfo(session.addr)
+    const solPrice = await utils.getSOLPrice();
 
     let tokenBalance: number = 0;
     if (token && token.decimal) {
@@ -491,7 +492,7 @@ export const getMainMenuMessage = async (
       );
     }  
     MESSAGE = `🏅 Welcome to ${process.env.BOT_TITLE} 🏅.
-    The fastest Neptune buy and sell bot on Solana.
+    The fastest Torres buy and sell bot on Solana.
     To get quick start with token, input your own token to buy and sell tokens.
     🔍 Tap the Help button below for more info.
     
@@ -530,7 +531,7 @@ export const getMainMenuMessage = async (
     💰 Balance: ${utils.roundSolUnit(SOLBalance, 3, "")}
     ${
       token
-        ? `💦 Token Balance: ${utils.roundSolUnit(tokenBalance, 3, token.symbol)}`
+        ? `💦 Token Balance: ${utils.roundSolUnit(tokenBalance, 3, token.symbol)}/${utils.roundSolUnit(tokenBalance * price / solPrice, 3, "")}`
         : ``
     }
     ${constants.BOT_FOOTER_DASH}`;
@@ -538,7 +539,7 @@ export const getMainMenuMessage = async (
   }
   else {
     MESSAGE = `🏅 Welcome to ${process.env.BOT_TITLE} 🏅.
-    The fastest Neptune buy and sell bot on Solana.
+    The fastest Torres buy and sell bot on Solana.
     To get quick start with token, input your own token to buy and sell tokens.
     🔍 Tap the Help button below for more info.
     
@@ -573,7 +574,7 @@ export const getStartMenuMessage = async (
   const SOLBalance: number = await utils.getWalletSOLBalance(depositWallet);
   console.log(SOLBalance);
   const MESSAGE = `🏅 Welcome to ${process.env.BOT_TITLE} 🏅.
-The fastest Neptune buy and sell bot on Solana.
+The fastest Torres buy and sell bot on Solana.
 To get quick start with token, input your own token to buy and sell tokens.
 
 🔍 Tap the Help button below for more info.
@@ -680,7 +681,7 @@ export const json_help = async (sessionId: string) => {
 
   const title = `📕 Help:
 
-This is the first Neptune buy and sell bot on Solana.
+This is the first Torres buy and sell bot on Solana.
 
 🎚️ Bot Settings:
 🔹Slippage : Specify the certain slippage 
