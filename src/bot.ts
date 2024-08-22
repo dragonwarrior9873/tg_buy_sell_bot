@@ -955,8 +955,6 @@ export const executeCommand = async (
       let pool_Info;
       //@ts-ignore
       if ( token && token.pool_info ){
-          //@ts-ignore
-        console.log( "token pool_info is ", token.pool_Info)
         //@ts-ignore
         pool_Info = token.pool_Info
       }
